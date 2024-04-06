@@ -54,34 +54,47 @@ export class UserService {
   }
 
   async findOne(id: string) {
-    const user = await this.userRepository.findOneBy({ id });
-
-    if (!user) throw new NotFoundException(`The user with id: ${id} not found`);
-
-    return user;
-  }
-
-  async update(id: string, updateUserDto: UpdateUserDto) {
     try {
-      const user = await this.findOne(id);
+      const user = await this.userRepository.findOneBy({
+        status: true,
+        id: id,
+      });
 
-      console.log(user);
+      if (!user)
+        throw new NotFoundException(`The user with id: ${id} not found`);
 
-      await this.userRepository.update(id, updateUserDto);
-      return;
+      return user;
     } catch (error) {
       this.handleErrors(error);
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    try {
+      await this.userRepository.update(id, updateUserDto);
+      return 'User was updated successfully';
+    } catch (error) {
+      this.handleErrors(error);
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      await this.findOne(id);
+
+      await this.userRepository.update(id, {
+        status: false,
+      });
+    } catch (error) {
+      this.handleErrors(error);
+    }
+    return 'The user was unsubscribed successfully ';
   }
 
   private handleErrors(error: any) {
-    console.log(error);
-
     if (error.code === '23505') throw new BadRequestException(error.detail);
+
+    if (error.status === 404) throw new NotFoundException(error.message);
 
     this.logger.error(error);
 
