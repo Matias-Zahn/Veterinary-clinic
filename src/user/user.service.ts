@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -12,6 +13,9 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { JwtPayload } from 'src/auth/interfaces/jwt.interface';
+import { JwtService } from '@nestjs/jwt';
+import { LoginUserDto } from './dto/login-user.dto';
 
 @Injectable()
 export class UserService {
@@ -19,6 +23,7 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly jwtServices: JwtService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -32,7 +37,45 @@ export class UserService {
 
       await this.userRepository.save(user);
 
-      return user;
+      const token = this.generateJwt({ email: user.email });
+
+      return {
+        ...user,
+        token,
+      };
+    } catch (error) {
+      this.handleErrors(error);
+    }
+  }
+
+  async login(loginUserDto: LoginUserDto) {
+    try {
+      const { email, password } = loginUserDto;
+
+      const user = await this.userRepository.findOne({
+        where: {
+          email: email,
+        },
+        select: {
+          password: true,
+          email: true,
+          id: true,
+        },
+      });
+
+      if (!user) throw new UnauthorizedException('Credentials are not valid');
+
+      const isCorrectPassword = bcrypt.compareSync(password, user.password);
+
+      if (!isCorrectPassword)
+        throw new UnauthorizedException('Credentials are not valid (Pass)');
+
+      const token = this.generateJwt({ email: user.email });
+
+      return {
+        ...user,
+        token,
+      };
     } catch (error) {
       this.handleErrors(error);
     }
@@ -91,7 +134,16 @@ export class UserService {
     return 'The user was unsubscribed successfully ';
   }
 
+  private generateJwt(payload: JwtPayload) {
+    try {
+      return this.jwtServices.sign(payload);
+    } catch (error) {
+      this.handleErrors(error);
+    }
+  }
+
   private handleErrors(error: any) {
+    console.log(error);
     if (error.code === '23505') throw new BadRequestException(error.detail);
 
     if (error.status === 404) throw new NotFoundException(error.message);
