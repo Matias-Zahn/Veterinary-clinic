@@ -37,7 +37,7 @@ export class UserService {
 
       await this.userRepository.save(user);
 
-      const token = this.generateJwt({ email: user.email });
+      const token = this.generateJwt({ id: user.id });
 
       return {
         ...user,
@@ -49,36 +49,32 @@ export class UserService {
   }
 
   async login(loginUserDto: LoginUserDto) {
-    try {
-      const { email, password } = loginUserDto;
+    const { email, password } = loginUserDto;
 
-      const user = await this.userRepository.findOne({
-        where: {
-          email: email,
-        },
-        select: {
-          password: true,
-          email: true,
-          id: true,
-        },
-      });
+    const user = await this.userRepository.findOne({
+      where: {
+        email: email,
+      },
+      select: {
+        password: true,
+        email: true,
+        id: true,
+      },
+    });
 
-      if (!user) throw new UnauthorizedException('Credentials are not valid');
+    if (!user) throw new UnauthorizedException('Credentials are not valid');
 
-      const isCorrectPassword = bcrypt.compareSync(password, user.password);
+    const isCorrectPassword = bcrypt.compareSync(password, user.password);
 
-      if (!isCorrectPassword)
-        throw new UnauthorizedException('Credentials are not valid (Pass)');
+    if (!isCorrectPassword)
+      throw new UnauthorizedException('Credentials are not valid (Pass)');
 
-      const token = this.generateJwt({ email: user.email });
+    const token = this.generateJwt({ id: user.id });
 
-      return {
-        ...user,
-        token,
-      };
-    } catch (error) {
-      this.handleErrors(error);
-    }
+    return {
+      ...user,
+      token,
+    };
   }
 
   async findAll(paginationDto: PaginationDto) {

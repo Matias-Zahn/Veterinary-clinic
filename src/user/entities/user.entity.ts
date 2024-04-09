@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Pet } from 'src/pet/entities/pet.entity';
+import {
+  BeforeInsert,
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class User {
@@ -34,8 +41,23 @@ export class User {
   })
   passwordChangedAt: string;
 
+  @Column('enum', {
+    enum: ['developer', 'client'],
+    default: 'client',
+  })
+  role: string;
+
   @Column('bool', {
     default: true,
   })
   status: boolean;
+
+  @OneToMany(() => Pet, (pet) => pet.user)
+  pet: Pet;
+
+  @BeforeInsert()
+  checkUpperCase() {
+    this.name = this.name.toLowerCase();
+    this.surname = this.surname.toLowerCase();
+  }
 }

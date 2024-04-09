@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   controllers: [UserController],
@@ -12,6 +13,7 @@ import { UserService } from './user.service';
   imports: [
     TypeOrmModule.forFeature([User]),
     ConfigModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -23,6 +25,6 @@ import { UserService } from './user.service';
       }),
     }),
   ],
-  exports: [TypeOrmModule.forFeature([User])],
+  exports: [TypeOrmModule.forFeature([User]), PassportModule],
 })
 export class UserModule {}
