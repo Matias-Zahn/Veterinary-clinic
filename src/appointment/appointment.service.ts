@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -8,6 +13,7 @@ import * as moment from 'moment-timezone';
 
 @Injectable()
 export class AppointmentService {
+  private TimeZone = 'US/Eastern';
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
@@ -18,12 +24,10 @@ export class AppointmentService {
   async create(createAppointmentDto: CreateAppointmentDto) {
     const { date, durationMinutes } = createAppointmentDto;
 
-    const dateMoment = moment(date);
-
-    const dateFormat = dateMoment.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+    const dateFormated = this.formatDate(date);
 
     const conflict = await this.findConflictAppointment(
-      dateFormat,
+      dateFormated,
       durationMinutes,
     );
 
@@ -39,20 +43,75 @@ export class AppointmentService {
     return appointment;
   }
 
-  findAll() {
-    return `This action returns all appointment`;
+  async findAll() {
+    const appointments = await this.appointmentRepository.find();
+
+    return appointments;
   }
 
-  findOne(id: string) {
-    return id;
+  async findOne(id: string) {
+    const appointment = await this.appointmentRepository.findOneBy({ id });
+
+    if (!appointment)
+      throw new NotFoundException(`Appointment with id ${id} not found`);
+
+    return appointment;
   }
 
-  update(id: number, updateAppointmentDto: UpdateAppointmentDto) {
-    return `This action updates a #${id} appointment`;
+  async update(id: string, updateAppointmentDto: UpdateAppointmentDto) {
+    const { date: dateUpdated } = updateAppointmentDto;
+
+    if (!updateAppointmentDto.date) {
+      await this.appointmentRepository.update(id, {
+        status: 'completed',
+      });
+
+      return 'Status completed';
+    }
+
+    const newDate = this.formatDate(dateUpdated);
+
+    const conflict = await this.findConflictAppointment(newDate);
+
+    if (conflict)
+      throw new ConflictException(
+        'The doctor already has an appointment assigned to that time',
+      );
+
+    await this.appointmentRepository.update(id, updateAppointmentDto);
+
+    return 'The appointment was rescheduled';
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} appointment`;
+  async remove(id: string) {
+    const dateMoment = moment().tz(this.TimeZone);
+
+    const initalMoment = dateMoment.clone().subtract(60, 'minutes').toDate();
+
+    console.log(initalMoment);
+
+    const endMoment = dateMoment.clone().add(60, 'minutes').toDate();
+
+    console.log(endMoment);
+
+    const conflictAppointments = await this.appointmentRepository.findOne({
+      where: {
+        status: 'pending',
+        id,
+        date: Between(initalMoment, endMoment),
+      },
+    });
+
+    if (conflictAppointments)
+      throw new ConflictException(
+        'To cancel this appointment it is necessary to do so 1 hour in advance',
+      );
+
+    await this.appointmentRepository.update(id, {
+      status: 'cancelled',
+    });
+
+    return 'Appointment has been cancelled';
   }
 
   private async findConflictAppointment(
@@ -60,8 +119,7 @@ export class AppointmentService {
     durationMinutes: number = 30,
   ) {
     try {
-      const timezone = 'US/Eastern';
-      const startMoment = moment(starTime).tz(timezone);
+      const startMoment = moment(starTime).tz(this.TimeZone);
 
       const endMoment = startMoment.clone().add(durationMinutes, 'minutes');
 
@@ -78,5 +136,13 @@ export class AppointmentService {
     } catch (error) {
       console.log(error);
     }
+  }
+
+  private formatDate(date: string) {
+    const dateMoment = moment(date).tz('US/Eastern');
+
+    const dateFormat = dateMoment.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+    return dateFormat;
   }
 }
