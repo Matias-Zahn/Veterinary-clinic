@@ -1,9 +1,11 @@
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import {
   BeforeInsert,
   Column,
   Entity,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -40,6 +42,9 @@ export class Pet {
 
   @ManyToOne(() => User, (user) => user.pet, { eager: true })
   user: User;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.pet)
+  appointment: Appointment;
 
   @BeforeInsert()
   checkUpperCase() {

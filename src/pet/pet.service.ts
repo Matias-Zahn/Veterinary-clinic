@@ -13,7 +13,6 @@ export class PetService {
     private readonly petRepository: Repository<Pet>,
   ) {}
 
-  //TODO Saber quien es el dueño del token para la creacion de la mascota
   async create(createPetDto: CreatePetDto, user: User) {
     try {
       const pet = this.petRepository.create({
