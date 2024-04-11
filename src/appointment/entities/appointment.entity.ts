@@ -1,3 +1,4 @@
+import { Medic } from 'src/medic/entities/medic.entity';
 import { Pet } from 'src/pet/entities/pet.entity';
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 
@@ -25,4 +26,7 @@ export class Appointment {
 
   @ManyToOne(() => Pet, (pet) => pet.appointment, { eager: true })
   pet: Pet;
+
+  @ManyToOne(() => Medic, (medic) => medic.appointment)
+  medic: Medic;
 }

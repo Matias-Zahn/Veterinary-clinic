@@ -10,6 +10,8 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { Appointment } from './entities/appointment.entity';
 import * as moment from 'moment-timezone';
+import { MedicService } from 'src/medic/medic.service';
+import { PetService } from 'src/pet/pet.service';
 
 @Injectable()
 export class AppointmentService {
@@ -17,18 +19,19 @@ export class AppointmentService {
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    private readonly medicService: MedicService,
+    private readonly petService: PetService,
   ) {}
 
-  //TODO Continuar con los demas servicios
-
   async create(createAppointmentDto: CreateAppointmentDto) {
-    const { date, durationMinutes } = createAppointmentDto;
+    const { date, durationMinutes, medicId, petId } = createAppointmentDto;
 
     const dateFormated = this.formatDate(date);
 
     const conflict = await this.findConflictAppointment(
       dateFormated,
       durationMinutes,
+      medicId,
     );
 
     if (conflict)
@@ -36,7 +39,15 @@ export class AppointmentService {
         'The doctor already has an appointment assigned to that time',
       );
 
-    const appointment = this.appointmentRepository.create(createAppointmentDto);
+    const medic = await this.medicService.findOne(medicId);
+
+    const pet = await this.petService.findOne(petId);
+
+    const appointment = this.appointmentRepository.create({
+      ...createAppointmentDto,
+      medic,
+      pet,
+    });
 
     await this.appointmentRepository.save(appointment);
 
@@ -117,6 +128,7 @@ export class AppointmentService {
   private async findConflictAppointment(
     starTime: string,
     durationMinutes: number = 30,
+    medicId?: string,
   ) {
     try {
       const startMoment = moment(starTime).tz(this.TimeZone);
@@ -127,6 +139,7 @@ export class AppointmentService {
 
       const conflictAppointments = await this.appointmentRepository.count({
         where: {
+          medic: { id: medicId },
           status: 'pending',
           date: Between(startValidRange.toDate(), endMoment.toDate()),
         },

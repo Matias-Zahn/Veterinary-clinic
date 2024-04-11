@@ -1,26 +1,65 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateMedicDto } from './dto/create-medic.dto';
 import { UpdateMedicDto } from './dto/update-medic.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Medic } from './entities/medic.entity';
+import { Repository } from 'typeorm';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Injectable()
 export class MedicService {
-  create(createMedicDto: CreateMedicDto) {
-    return 'This action adds a new medic';
+  constructor(
+    @InjectRepository(Medic)
+    private readonly medicRepository: Repository<Medic>,
+  ) {}
+
+  async create(createMedicDto: CreateMedicDto) {
+    const medic = this.medicRepository.create(createMedicDto);
+
+    await this.medicRepository.save(medic);
   }
 
-  findAll() {
-    return `This action returns all medic`;
+  async findAll() {
+    const medics = await this.medicRepository.find({
+      where: {
+        status: true,
+      },
+    });
+
+    return medics;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} medic`;
+  async findOne(id: string) {
+    const medic = await this.medicRepository.findOne({
+      where: {
+        id,
+        status: true,
+      },
+      relations: {
+        appointment: true,
+      },
+    });
+
+    if (!medic) throw new NotFoundException(`Medic with id ${id} not found`);
+
+    return medic;
   }
 
-  update(id: number, updateMedicDto: UpdateMedicDto) {
-    return `This action updates a #${id} medic`;
+  async update(id: string, updateMedicDto: UpdateMedicDto) {
+    const medic = await this.findOne(id);
+
+    await this.medicRepository.update(medic.id, updateMedicDto);
+
+    return `Medic ${medic.name}' information was updated `;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} medic`;
+  async remove(id: string) {
+    const medic = await this.findOne(id);
+
+    await this.medicRepository.update(medic.id, {
+      status: false,
+    });
+
+    return `Medic ${medic.name} has been deleted`;
   }
 }

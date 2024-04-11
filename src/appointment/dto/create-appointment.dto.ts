@@ -20,9 +20,10 @@ export class CreateAppointmentDto {
   reason: string;
 
   @IsUUID()
+  @IsString()
   petId: string;
 
   @IsUUID()
-  @IsOptional()
-  medicId?: string;
+  @IsString()
+  medicId: string;
 }

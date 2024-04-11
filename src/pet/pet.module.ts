@@ -9,5 +9,6 @@ import { PetService } from './pet.service';
   controllers: [PetController],
   providers: [PetService],
   imports: [TypeOrmModule.forFeature([Pet]), UserModule],
+  exports: [PetService],
 })
 export class PetModule {}
